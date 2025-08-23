@@ -63,6 +63,25 @@ class Player(BaseModel):
 [yellow]HEALTH[/] {self.hp_bar()} {self.current_hp} / {self.max_hp}
 [cyan]ITEMS[/]  {inventory_str}"""
 
+    def medium_without_name(self, title: str):
+        inventory_str = "\n".join(map(lambda i: f"• {i}", self.inventory)) if len(self.inventory) > 0 else "Empty"
+        dead = self.current_hp == 0
+
+        return rpanel.Panel(
+            rc.Columns([
+                f"\n{self.image.small if self.image is not None else ''}",
+                f"""
+[yellow]HEALTH[/] {self.hp_bar()} {self.current_hp} / {self.max_hp}{" [red]DEAD[/]" if dead else ""}
+
+[red]STRENGTH[/] {self.strength}    [blue]INTELLIGENCE[/] {self.intelligence}    [magenta]CHARISMA[/] {self.charisma}
+
+[cyan]ITEMS[/]
+{inventory_str}
+""",
+            ]),
+            title=title
+        )
+
     def medium(self):
         inventory_str = "\n".join(map(lambda i: f"• {i}", self.inventory)) if len(self.inventory) > 0 else "Empty"
         dead = self.current_hp == 0

@@ -43,9 +43,12 @@ async def main():
             combat_scene = await game_agent.get_combat_scene(scene, game_instance.players)
             clear_loading()
 
-            r.print(rc.Columns(
-                [character.tiny() for character in combat_scene.characters],
-                padding=(1, 2)
+            r.print(rpanel.Panel(
+                rc.Columns(
+                    [character.tiny() for character in combat_scene.characters],
+                    padding=(1, 2)
+                ),
+                title="Character Stats"
             ))
             
             while True:
@@ -57,8 +60,7 @@ async def main():
                         continue
 
                     print()
-                    r.print(f"[cyan]{player.name}[/]'s Turn")
-                    r.print(player.small_without_name())
+                    r.print(player.medium_without_name(f"[cyan]{player.name}[/]'s Turn"))
                     print()
                     
                     r.print(f"What do you do? ", end='')
@@ -93,9 +95,12 @@ async def main():
                     combat_scene = await game_agent.get_updated_combat_scene(combat_scene, action_result.outcome)
                     clear_loading()
 
-                    r.print(rc.Columns(
-                        [character.tiny() for character in combat_scene.characters],
-                        padding=(1, 2)
+                    r.print(rpanel.Panel(
+                        rc.Columns(
+                            [character.tiny() for character in combat_scene.characters],
+                            padding=(1, 2)
+                        ),
+                        title="Character Stats"
                     ))
 
                 # prompt llm to decide if scene is over
