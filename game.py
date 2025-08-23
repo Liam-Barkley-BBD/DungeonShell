@@ -9,11 +9,100 @@ import ascii_image
 import ansi
 import asyncio
 import aiohttp
+import random
 
 game_agent = GameAgent()
 
+def show_loading():
+    r.print(ra.Align.center('[blink]Loading...'), end='')
+
+def clear_loading():
+    ansi.move_up()
+    ansi.erase_line()
+
 async def main():
-    await initialise_game()
+    game_instance = await initialise_game()
+    num_scenes = 10
+
+    # game loop
+    while(True):
+        for _ in range(num_scenes):
+            show_loading()
+            scene = await game_agent.create_scene(game_instance, GameScene.COMBAT)
+            clear_loading()
+            
+            r.print(f"\n[cyan]{scene.name}\n")
+            
+            for word in scene.description.split():
+                print(f"{word} ", end='', flush=True)
+                await asyncio.sleep(0.02)
+            
+            print('\n')
+
+            show_loading()
+            combat_scene = await game_agent.get_combat_scene(scene, game_instance.players)
+            clear_loading()
+
+            r.print(rc.Columns(
+                [character.tiny() for character in combat_scene.characters],
+                padding=(1, 2)
+            ))
+            
+            while True:
+                # let each player perform an action
+                for player in game_instance.players:
+                    characters = list(filter(lambda character: character.name == player.name, combat_scene.characters))
+
+                    if len(characters) != 1:
+                        continue
+
+                    print()
+                    r.print(f"[cyan]{player.name}[/]'s Turn")
+                    r.print(player.small_without_name())
+                    print()
+                    
+                    r.print(f"What do you do? ", end='')
+                    player_response = input()
+                    
+                    action = await game_agent.get_combat_info(player_response, combat_scene, player)
+
+                    r.print(f"[gray37]Difficulty:[/] [yellow]{action.attribute}[/] {action.difficultyClass}\n")
+                    
+                    # calculate hit or miss and update xp
+                    match action.attribute:
+                        case "STRENGTH":
+                            hit = action.difficultyClass <= player.strength + random.randint(1,20)
+                        case "CHARISMA":
+                            hit = action.difficultyClass <= player.charisma + random.randint(1,20)
+                        case "INTELLIGENCE":
+                            hit = action.difficultyClass <= player.intelligence + random.randint(1,20)
+                        case _:
+                            hit = False
+                        
+                    if hit:
+                        # TODO: update xp
+                        pass
+                
+                    show_loading()
+                    action_result = await game_agent.get_action_result(combat_scene, player.name, player_response, hit, random.choice(["MINOR", "MEDIOCRE", "EXTREME"]))
+                    clear_loading()
+                    
+                    r.print(f"{action_result.feedback} [gray37]{action_result.outcome}[/]\n")
+                    
+                    show_loading()
+                    combat_scene = await game_agent.get_updated_combat_scene(combat_scene, action_result.outcome)
+                    clear_loading()
+
+                    r.print(rc.Columns(
+                        [character.tiny() for character in combat_scene.characters],
+                        padding=(1, 2)
+                    ))
+
+                # prompt llm to decide if scene is over
+                # if over, update the players list to reflect combat scene state
+
+            # ask players to allocate attribute points
+            game_instance.iteration += 1
 
 async def initialise_game():
     num_characters = None
@@ -21,6 +110,9 @@ async def initialise_game():
     while not isinstance(num_characters, int):
         try:
             num_characters = int(rpr.Prompt.ask("[cyan]How many players?").strip())
+            if num_characters == 0:
+                print("Cannot play with 0 players!")
+                num_characters = None
         except ValueError:
             pass
 
@@ -44,7 +136,6 @@ async def initialise_game():
     player_tasks = map(lambda prompt: game_agent.get_player_object(session, prompt.name, prompt.description), player_prompts)
 
     print()
-
     r.print(f"[bold blue]{ascii_image.WIZARD}[/bold blue]")
     
     ansi.move_up(ascii_image.WIZARD_H)
@@ -73,34 +164,24 @@ async def initialise_game():
     for _ in range(ascii_image.WIZARD_H - line_count + 1):
         print()
     
-    r.print(ra.Align.center('[blink]Loading...'), end='')
+    show_loading()
     
     players = await asyncio.gather(*player_tasks)
     await session.close()
 
-    ansi.move_up()
-    ansi.erase_line()
+    clear_loading()
 
     for player in players:
-        r.print(player.medium())
+        r.print(player.large())
         await asyncio.sleep(1)
 
-    for player in players:
-        print()
-        r.print(player.small())
-
-    for player in players:
-        print()
-        r.print(player.tiny())
-    
-    # print()
-    
-    game = GameState(num_characters=num_characters, story_summary=story_summary, players=players)
+    return GameState(num_characters, story_summary, players)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except EOFError:
         print("\n\nExiting...")
-    except:
-        print("\n\nAn error has occurred.")
+    except Exception as ex:
+        r.print(f"\n\n[red]An error has occurred.\n\n")
+        raise
