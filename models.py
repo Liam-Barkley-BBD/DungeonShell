@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from enum import Enum
 from typing import List
 from pydantic import BaseModel, Field
 
@@ -48,8 +50,51 @@ class Player(BaseModel):
         )
 
 
+@dataclass
 class GameState(object):
-    def __init__(self, num_characters: int, story_summary: str, players: List[Player]):
-        self.num_characters = num_characters
-        self.story_summary = story_summary
-        self.players = players
+    num_characters : int
+    story_summary: str
+    players: list[Player]
+    game_summary: str
+    iteration: int
+
+class GameScene(Enum):
+    COMBAT = 0
+    EXPLORATION = 1
+    SOCIAL = 2
+
+class Action(BaseModel):
+    difficultyClass: int = Field("The difficulty class of the action")
+    attribute: str = Field("'The attribute corresponding to this action'")
+   
+class Character(BaseModel):
+    name: str = Field(description="Name")
+    current_hp : int = Field(description="Current HP")
+    max_hp : int = Field(description="Max HP")
+    type: str = Field(description="'PLAYER' or 'ENEMY'")
+
+class CombatScene(BaseModel):
+    characters: list[Character]
+    battle_summary: str
+
+class ActionOutcome(BaseModel):
+    feedback: str = Field("Feedback to give player in game")
+    outcome: str = Field("How action influenced the game state")
+
+class SceneDescription(BaseModel):
+    name: str = Field("Name of scene")
+    description: str = Field("Scene description")
+
+# @dataclass
+# class Scene:
+#     name: str
+#     scene_type: str
+#     description: str
+#     scene_summary: list[str]
+
+#     def to_ctx(self):
+#         history = "\n".join(self.history)
+#         return f"SCENE '{self.name}'\n\nSCENE DESCRIPTION:\n{self.description}\n\nSCENE HISTORY:\n{history}"
+    
+#     def push_history(self, event: str):
+#         self.history.append(event)
