@@ -10,7 +10,6 @@ class PlayerPrompt(object):
 
 class Player(BaseModel):
     name: str = Field(description="name")
-    level: int = Field(description="level")
     current_hp : int = Field(description="current hp")
     max_hp : int = Field(description=" maximum hp")
     strength : int = Field(description="strength level")
@@ -41,7 +40,7 @@ class Player(BaseModel):
         inventory_str = ", ".join(self.inventory) if self.inventory else "Empty"
 
         return (
-            f"{BOLD}{CYAN}Player: {self.name} (Level {self.level}){RESET}\n"
+            f"{BOLD}{CYAN}Player: {self.name} {RESET}\n"
             f"HP: [{hp_bar}] {self.current_hp}/{self.max_hp}\n"
             f"{YELLOW}Stats:{RESET}\n"
             f"  {RED}Strength:{RESET}     {self.strength}\n"
@@ -57,7 +56,6 @@ class GameState(object):
     story_summary: str
     players: list[Player]
     game_summary: str
-    iteration: int
 
 class GameScene(Enum):
     COMBAT = 0
@@ -90,16 +88,8 @@ class EndScene(BaseModel):
     terminate_scene: bool = Field("Indicates end of current scene")
     terminate_reason: str = Field("Reason for termination")
 
-# @dataclass
-# class Scene:
-#     name: str
-#     scene_type: str
-#     description: str
-#     scene_summary: list[str]
+class GameHistory(BaseModel):
+    history: str = Field("Brief summary of story so far")
 
-#     def to_ctx(self):
-#         history = "\n".join(self.history)
-#         return f"SCENE '{self.name}'\n\nSCENE DESCRIPTION:\n{self.description}\n\nSCENE HISTORY:\n{history}"
-    
-#     def push_history(self, event: str):
-#         self.history.append(event)
+class Event(BaseModel):
+    event: str = Field("New event in story")

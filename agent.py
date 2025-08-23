@@ -45,12 +45,12 @@ class GameAgent(object):
     def get_story_summary(self, story_prompt: str, players: List[PlayerPrompt]):
         return self.agent.invoke(story_summary_prompt(story_prompt=story_prompt, players=players))
     
-    def create_scene(self, game_instance : GameState, scene_type : GameScene) -> SceneDescription:
+    def create_scene(self, game_instance : GameState, scene_type : GameScene, i : int, num_scenes : int) -> SceneDescription:
         parser = JsonOutputParser(pydantic_object=SceneDescription)
         
         match scene_type:
             case GameScene.COMBAT:
-                prompt = get_combat_prompt(game_instance)
+                prompt = get_combat_prompt(game_instance, i, num_scenes)
 
         return SceneDescription(**self.invoke_agent(parser=parser, prompt=prompt))
             
@@ -59,9 +59,9 @@ class GameAgent(object):
         prompt = get_combat_scene_prompt(scene, players)
         return CombatScene(**self.invoke_agent(parser=parser, prompt=prompt))
     
-    def get_combat_info(self, player_response : str, combat_scene, player : Player) -> Action:
+    def get_combat_info(self, player_response : str, combat_scene, player : Player, event:str) -> Action:
         parser = JsonOutputParser(pydantic_object=Action)
-        prompt = get_action(combat_scene, player, player_response)
+        prompt = get_action(combat_scene, player, player_response, event)
         result = self.invoke_agent(parser=parser, prompt=prompt)
         return Action(**result)   
     
@@ -81,22 +81,17 @@ class GameAgent(object):
         prompt = get_updated_combat_scene_prompt(combat_scene, outcome, next_player)
         return CombatScene(**self.invoke_agent(parser=parser, prompt=prompt))
 
-    def check_scene_termination(self, combat_scene) -> EndScene:
+    def check_scene_termination(self, combat_scene : CombatScene) -> EndScene:
         parser = JsonOutputParser(pydantic_object=EndScene)
         prompt = check_scene_termination_prompt(combat_scene)
         return EndScene(**self.invoke_agent(parser=parser, prompt=prompt))
-
-# agent = create_react_agent(llm, tools=[], prompt="You are a dungeon master for a text based D&D game.")
-
-# # --- Example Run ---
-# if __name__ == "__main__":
-#     # user_query = "what branch am I on"
-#     # response = agent.run(user_query)
-#     # print("\n🤖 Agent Response:\n", response)
-
-#     input_message = {"role": "user", "content": "what branch am I on"}
-#     for step in agent.stream(
-#         {"messages": [input_message]},
-#         stream_mode="values",
-#     ):
-#         step["messages"][-1].pretty_print()
+    
+    def get_updated_game_history(self, old_summary : str, scene_summary : str) -> GameHistory:
+        parser = JsonOutputParser(pydantic_object=GameHistory)
+        prompt = update_game_summary_prompt(old_summary, scene_summary)
+        return GameHistory(**self.invoke_agent(parser=parser, prompt=prompt))
+    
+    def get_next_event(self, combat_scene: CombatScene, next_player:str) -> Event:
+        parser = JsonOutputParser(pydantic_object=Event)
+        prompt = get_next_event_prompt(combat_scene, next_player)
+        return Event(**self.invoke_agent(parser=parser, prompt=prompt))
