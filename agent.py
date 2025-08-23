@@ -37,9 +37,9 @@ class GameAgent(object):
         )
 
         chain = prompt_template | self.agent | parser
-        print("------------------------------------------------------")
-        print(prompt_template.format(query=prompt))
-        print("------------------------------------------------------")
+        # print("------------------------------------------------------")
+        # print(prompt_template.format(query=prompt))
+        # print("------------------------------------------------------")
         return chain.invoke({"query": prompt})
         
     def get_story_summary(self, story_prompt: str, players: List[PlayerPrompt]):
