@@ -12,8 +12,6 @@ def main():
     # game loop
     while(True):
         for i in range(num_scenes):
-            #choose scene
-            # scene = game_agent.choose_scene(game_instance, math.floor(math.random() * (len(GameScene)-1)))
             scene = game_agent.create_scene(game_instance, GameScene.COMBAT)
             print(scene.name)
             print("______________________________")
@@ -31,6 +29,8 @@ def main():
                     characters = list(filter(lambda character: character.name == player.name, combat_scene.characters))
 
                     if len(characters) != 1:
+                        continue
+                    elif not characters[0].current_hp > 0:
                         continue
 
                     print("*** Player ***")
@@ -50,7 +50,7 @@ def main():
                             raise ValueError("FUCK")
                         
                     if hit:
-                        # TODO: update xp
+                        # TODO (CADE): update xp on successful actions
                         pass
                 
                     # get action result
@@ -61,8 +61,11 @@ def main():
                     combat_scene = game_agent.get_updated_combat_scene(combat_scene, action_result.outcome)
                     print(combat_scene)
 
-                # prompt llm to decide if scene is over
-                # if over, update the players list to reflect combat scene state
+                    #TODO (CADE): update player state
+
+                # TODO (LIAM): prompt llm to decide if scene is over
+
+                # TODO (CADE): if over, update the players list to reflect combat scene state
 
             # ask players to allocate attribute points
             game_instance.iteration += 1

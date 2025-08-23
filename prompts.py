@@ -64,6 +64,7 @@ List of players (make sure the names match exactly in your response):
 
 """
 
+# TODO: improve difficulty class generation + invalid scenarios
 def get_action(combat_scene: CombatScene, player : Player, player_response : str):
     return f"""
 Please provide the information need to perform a dungeons and dragons dice roll using a 20 sided die.
