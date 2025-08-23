@@ -21,7 +21,8 @@ def main():
             combat_scene = game_agent.get_combat_scene(scene, game_instance.players)
             print("*** Combat scene ***")
             print(combat_scene)
-            while True:
+            is_running = True
+            while is_running:
 
                 # let each player perform an action
                 for i, player in enumerate(game_instance.players):
@@ -47,29 +48,76 @@ def main():
                         case "INTELLIGENCE":
                             hit = action.difficultyClass <= player.intelligence + random.randint(1,20)
                         case _:
-                            raise ValueError("FUCK")
-                        
+                            raise ValueError("Unknown attribute provided")
+                    
+                    choices = ["MINOR", "MEDIOCRE", "EXTREME"]
+                    random_index = random.randint(0,2)
+                    action_modifier = choices[random_index]
                     if hit:
-                        # TODO (CADE): update xp on successful actions
-                        pass
-                
+                        player.xp +=  (random_index + 1)              
+                    
                     # get action result
-                    action_result = game_agent.get_action_result(combat_scene, player.name, player_response, hit, random.choice(["MINOR", "MEDIOCRE", "EXTREME"]))
+                    action_result = game_agent.get_action_result(combat_scene, player.name, player_response, hit, action_modifier)
                     print("** Outcome ** ")
                     print(action_result.feedback)
                     # update combat scene according to result
                     combat_scene = game_agent.get_updated_combat_scene(combat_scene, action_result.outcome)
                     print(combat_scene)
 
+                    # Now that the combat scene state has potentially shifted we need to reconcile them now
+                    reconcile_player_hp(combat_scene, game_instance)
+                    is_running = False
+
                     #TODO (CADE): update player state
 
                 # TODO (LIAM): prompt llm to decide if scene is over
+                    
 
                 # TODO (CADE): if over, update the players list to reflect combat scene state
 
             # ask players to allocate attribute points
+            print("** The scene has ended **")
+            for i, player in enumerate(game_instance.players):
+                available_levels = player.xp//10
+                print(f"Player {i+1}", f"You have {player.xp} experience points.")
+                if available_levels > 0:
+                    print(f"You can level up one of your attributes by {available_levels} levels")
+                    choice = None
+                    while(choice == None):
+                        potential_choice = input("Choose one of the following options:\n*Strength(1)\n*Intelligence(2)\n*Charisma(3)\n")
+                        try:
+                            if int(potential_choice) in [1,2,3]:
+                                choice = potential_choice
+                        except:
+                            continue
+
+                    match choice:
+                        case 1:
+                            player.strength += available_levels
+                        case 2:
+                            player.intelligence += available_levels
+                        case 3:
+                            player.charisma += available_levels
+                    
+                    # set the xp on the player to be whatever is left over
+                    player.xp = player.xp%10
             game_instance.iteration += 1
-            
+
+def reconcile_player_hp(combat_scene : CombatScene, game_instance : GameState):
+    removal_indices = []
+    for i, player in enumerate(game_instance.players):
+        if player.name not in [character.name for character in combat_scene.characters]:
+            removal_indices.append(i)
+            continue
+
+        # Get the corresponding character in the combat scene
+        character = list(filter(lambda c:c.name == player.name, combat_scene.characters))[0]
+        player.current_hp = character.current_hp
+    
+
+
+
+
 def initialise_game():
     num_characters = int(input("How many players?\n"))
     story_prompt = input("What theme are we going for?\n")

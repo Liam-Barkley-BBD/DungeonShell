@@ -17,7 +17,8 @@ class Player(BaseModel):
     intelligence : int = Field(description="inteligence level")
     charisma : int = Field(description="charisma level")
     inventory: List[str] = Field(description="Player items")
-
+    xp: int = 0
+    
     def __str__(self) -> str:
         # ANSI color codes
         RED = "\033[91m"
