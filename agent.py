@@ -1,7 +1,8 @@
-import os
+import aiohttp
+import asyncio
+
 from typing import List
 from dotenv import load_dotenv
-import subprocess
 
 from langchain_openai import ChatOpenAI, custom_tool
 
@@ -15,13 +16,15 @@ from prompts import *
 
 from models import *
 
+import ascii_image
+
 load_dotenv()
 
 class GameAgent(object):
 
     def __init__(self):
         self.agent = ChatOpenAI(
-                        model="gpt-5",
+                        model="gpt-4o",
                         temperature=0,
                         max_tokens=None,
                         timeout=None,
@@ -29,10 +32,10 @@ class GameAgent(object):
                         output_version="responses/v1",
                     )
         
-    def get_story_summary(self, story_prompt: str, players: List[PlayerPrompt]):
-        return self.agent.invoke(story_summary_prompt(story_prompt=story_prompt, players=players))
-    
-    def get_player_object(self, player_name, player_description):
+    def get_story_summary_streamed(self, story_prompt: str, players: List[PlayerPrompt]):
+        return self.agent.astream(story_summary_prompt(story_prompt=story_prompt, players=players))
+
+    async def get_player_object(self, session: aiohttp.ClientSession, player_name: str, player_description: str):
         parser = JsonOutputParser(pydantic_object=Player)
         prompt = get_player_prompt(player_name, player_description)
 
@@ -43,7 +46,16 @@ class GameAgent(object):
         )
 
         chain = prompt_template | self.agent | parser
-        return chain.invoke({"query": prompt})
+        
+        response = chain.ainvoke({"query": prompt})
+        image = ascii_image.generate_ascii_image(session, f"{player_name}, {player_description}, FULL CHARACTER IN VIEW, WHITE BACKGROUND")
+        
+        [response, image] = await asyncio.gather(response, image)
+        
+        player = Player(**response)
+        player.image = image
+        
+        return player
 
 # agent = create_react_agent(llm, tools=[], prompt="You are a dungeon master for a text based D&D game.")
 
