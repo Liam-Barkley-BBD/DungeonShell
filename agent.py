@@ -31,12 +31,15 @@ class GameAgent(object):
         
     def invoke_agent(self, parser: JsonOutputParser, prompt :str):
         prompt_template = PromptTemplate(
-            template=  "Answer the user query\n{format_instructions}\n{query}",
+            template=  "{query}\n{format_instructions}",
             input_variables=[],
             partial_variables={"format_instructions": parser.get_format_instructions()},
         )
 
         chain = prompt_template | self.agent | parser
+        print("------------------------------------------------------")
+        print(prompt_template.format(query=prompt))
+        print("------------------------------------------------------")
         return chain.invoke({"query": prompt})
         
     def get_story_summary(self, story_prompt: str, players: List[PlayerPrompt]):
@@ -51,7 +54,7 @@ class GameAgent(object):
 
         return SceneDescription(**self.invoke_agent(parser=parser, prompt=prompt))
             
-    def get_combat_scene(self, scene : SceneDescription, players : List[Player]) -> CombatScene:
+    def initialize_combat_scene(self, scene : SceneDescription, players : List[Player]) -> CombatScene:
         parser = JsonOutputParser(pydantic_object=CombatScene)
         prompt = get_combat_scene_prompt(scene, players)
         return CombatScene(**self.invoke_agent(parser=parser, prompt=prompt))
@@ -60,7 +63,6 @@ class GameAgent(object):
         parser = JsonOutputParser(pydantic_object=Action)
         prompt = get_action(combat_scene, player, player_response)
         result = self.invoke_agent(parser=parser, prompt=prompt)
-        print(result)
         return Action(**result)   
     
     def get_player_object(self, player_name, player_description) -> Player:
@@ -72,14 +74,17 @@ class GameAgent(object):
         parser = JsonOutputParser(pydantic_object=ActionOutcome)
         prompt = get_action_result_prompt(combat_scene, actor, requested_action, action_result, impact)
         result = self.invoke_agent(parser=parser, prompt=prompt)
-        print(result)
         return ActionOutcome(**result)   
 
-    def get_updated_combat_scene(self, combat_scene: CombatScene, outcome : str) -> CombatScene:
+    def get_updated_combat_scene(self, combat_scene: CombatScene, outcome : ActionOutcome, next_player : str) -> CombatScene:
         parser = JsonOutputParser(pydantic_object=CombatScene)
-        prompt = get_updated_combat_scene_prompt(combat_scene, outcome)
+        prompt = get_updated_combat_scene_prompt(combat_scene, outcome, next_player)
         return CombatScene(**self.invoke_agent(parser=parser, prompt=prompt))
 
+    def check_scene_termination(self, combat_scene) -> EndScene:
+        parser = JsonOutputParser(pydantic_object=EndScene)
+        prompt = check_scene_termination_prompt(combat_scene)
+        return EndScene(**self.invoke_agent(parser=parser, prompt=prompt))
 
 # agent = create_react_agent(llm, tools=[], prompt="You are a dungeon master for a text based D&D game.")
 

@@ -7,46 +7,64 @@ game_agent = GameAgent()
 
 def main():
     game_instance = initialise_game()
-    num_scenes = 10
+    num_scenes = 5
 
     # game loop
     while(True):
         for i in range(num_scenes):
+
             scene = game_agent.create_scene(game_instance, GameScene.COMBAT)
-            print(scene.name)
-            print("______________________________")
-            print(scene)
+            print(f"*** {scene.name} ***")
+            print("_______________________________________________________________________")
+            print(scene.description)
 
             # create combat scene based on generated summary and players
-            combat_scene = game_agent.get_combat_scene(scene, game_instance.players)
-            print("*** Combat scene ***")
-            print(combat_scene)
-            is_running = True
-            while is_running:
+            combat_scene = game_agent.initialize_combat_scene(scene, game_instance.players)
+            print("*** Context ***")
+            print("_______________________________________________________________________")
+            print(combat_scene.battle_summary)
+            print("_______________________________________________________________________")
+            print(combat_scene.characters)
+
+            while True:
 
                 # let each player perform an action
-                for i, player in enumerate(game_instance.players):
+                for i, character in enumerate(combat_scene.characters):
 
-                    characters = list(filter(lambda character: character.name == player.name, combat_scene.characters))
-
-                    if len(characters) != 1:
-                        continue
-                    elif not characters[0].current_hp > 0:
+                    if character.type != "PLAYER" or character.current_hp <= 0:
                         continue
 
+                    matches = list(filter(lambda player: character.name == player.name, game_instance.players))
+
+                    if len(matches) != 1:
+                        raise ValueError("Player not found")
+
+                    player = matches[0]
+
+                    # capture player action
                     print("*** Player ***")
+                    print("_______________________________________________________________________")
                     print(player)
-                    player_response = input(f"How do you respond?")
+                    player_response = input(f"How do you respond?\n")
+
                     action : ActionOutcome = game_agent.get_combat_info(player_response, combat_scene, player)
-                    print(action)
+                    print("*** Dice Roll ***")
+                    print("_______________________________________________________________________")
+
                     # calculate hit or miss and update xp
                     match action.attribute:
                         case "STRENGTH":
-                            hit = action.difficultyClass <= player.strength + random.randint(1,20)
+                            r = random.randint(1,20)
+                            hit = action.difficultyClass <= player.strength + r
+                            print(f"{player.strength} (STR) + {r} (ROLL) <= {action.difficultyClass} (DC)")
                         case "CHARISMA":
-                            hit = action.difficultyClass <= player.charisma + random.randint(1,20)
+                            r = random.randint(1,20)
+                            hit = action.difficultyClass <= player.charisma + r
+                            print(f"{player.charisma} (STR) + {r} (ROLL) <= {action.difficultyClass} (DC)")
                         case "INTELLIGENCE":
-                            hit = action.difficultyClass <= player.intelligence + random.randint(1,20)
+                            r = random.randint(1,20)
+                            hit = action.difficultyClass <= player.intelligence + r
+                            print(f"{player.intelligence} (STR) + {r} (ROLL) <= {action.difficultyClass} (DC)")
                         case _:
                             raise ValueError("Unknown attribute provided")
                     
@@ -57,21 +75,41 @@ def main():
                         player.xp +=  (random_index + 1)              
                     
                     # get action result
-                    action_result = game_agent.get_action_result(combat_scene, player.name, player_response, hit, action_modifier)
-                    print("** Outcome ** ")
-                    print(action_result.feedback)
+                    action_result = game_agent.get_action_result(combat_scene, player.name,
+                                                                 player_response, 
+                                                                 hit, 
+                                                                 action_modifier)
+
+                    print("** Result ** ")
+                    print("_______________________________________________________________________")
+                    print(f"{action_result.outcome}")
+
                     # update combat scene according to result
-                    combat_scene = game_agent.get_updated_combat_scene(combat_scene, action_result.outcome)
-                    print(combat_scene)
+                    player_characters = list(filter(lambda character: character.type == "PLAYER", combat_scene.characters))
+
+                    for i, player_character in enumerate(player_characters):
+                        if player_character.name == player.name:
+                            curr_player_idx = i
+                            break
+
+                    next_player = player_characters[(curr_player_idx + 1) % (len(player_characters))].name
+                    combat_scene = game_agent.get_updated_combat_scene(combat_scene, action_result, next_player)
+                    print("*** Context ***")
+                    print("_______________________________________________________________________")
+                    print(combat_scene.battle_summary)
+                    print("_______________________________________________________________________")
+                    print(combat_scene.characters)
 
                     # Now that the combat scene state has potentially shifted we need to reconcile them now
                     reconcile_player_hp(combat_scene, game_instance)
-                    is_running = False
 
-                    #TODO (CADE): update player state
-
-                # TODO (LIAM): prompt llm to decide if scene is over
-                    
+                #  prompt llm to decide if scene is over
+                check_termination = game_agent.check_scene_termination(combat_scene)
+                if check_termination.terminate_scene:
+                    print("*** Scene over ***")
+                    print("_______________________________________________________________________")
+                    print(check_termination.terminate_reason)
+                    break
 
                 # TODO (CADE): if over, update the players list to reflect combat scene state
 
@@ -113,10 +151,6 @@ def reconcile_player_hp(combat_scene : CombatScene, game_instance : GameState):
         # Get the corresponding character in the combat scene
         character = list(filter(lambda c:c.name == player.name, combat_scene.characters))[0]
         player.current_hp = character.current_hp
-    
-
-
-
 
 def initialise_game():
     num_characters = int(input("How many players?\n"))

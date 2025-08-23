@@ -79,12 +79,16 @@ class CombatScene(BaseModel):
     battle_summary: str
 
 class ActionOutcome(BaseModel):
-    feedback: str = Field("Feedback to give player in game")
-    outcome: str = Field("How action influenced the game state")
+    outcome: str = Field("How action influenced the game storyline")
+    game_update: str = Field("Updates to players and game state")
 
 class SceneDescription(BaseModel):
     name: str = Field("Name of scene")
     description: str = Field("Scene description")
+
+class EndScene(BaseModel):
+    terminate_scene: bool = Field("Indicates end of current scene")
+    terminate_reason: str = Field("Reason for termination")
 
 # @dataclass
 # class Scene:

@@ -56,6 +56,8 @@ Initialize all players health according to the below.
 
 Initialize the enemies health inferred from the scene description and scaled to give the players a fair chance.
 
+For the battle summary, briefly capture the context and end the summary with some action the first player needs to respond to.
+
 Scene description: 
 {scene.description}
 
@@ -64,52 +66,84 @@ List of players (make sure the names match exactly in your response):
 
 """
 
-# TODO: improve difficulty class generation + invalid scenarios
 def get_action(combat_scene: CombatScene, player : Player, player_response : str):
     return f"""
-Please provide the information need to perform a dungeons and dragons dice roll using a 20 sided die.
+Please provide the information need to perform a dungeons and dragons dice roll.
 
 Current game information: 
 {combat_scene.model_dump_json()}
 
-Requested action:
-{player_response}
-
 Player requesting actions:
 {player.model_dump_json()}
 
+Requested action:
+{player_response}
+
 Please select the single most applicable attribute required for the requested action: ['STRENGTH', 'INTELLIGENCE', 'CHARISMA']
+
+The difficulty class (DC), should take into account the player's stats. 
+
+If the request is logical and aligns with their stats then the DC should be low (5-10). 
+
+If it is a risky action that could be possible with moderate likelihood then DC should be between 10 and 15.
+
+For very unlikely requests it should be between 15 and 20. 
+
+Finally, for nonsensical requests like using an item not in the players inventory or a request that does not match the narrative, 
+you can make the DC 50 to indicate an impossible action.
 
 """
 
 def get_action_result_prompt(combat_scene: CombatScene, actor : str, requested_action: str, action_result: bool, impact: str):
     return f"""
-You are a dungeon master for a D&D game and must provide player feedback for the following dice roll (≤15 words).
+You are a dungeon master for a D&D game and must a narrative outcome for the following dice roll (≤15 words).
 
-Additionally, you must provide an explicit outcome describing how the following context should be updated, for example 'player Bob loses 10HP':
+Additionally, you must provide an explicit change to game state, for example 'player Bob loses 10HP':
 {combat_scene}
 
 Actor "{actor}" attempted to do the following:
 {requested_action}
 
 The die roll resulted in a {"success" if action_result else "failure"} with {impact} impact.
+
+MINOR: 1-3 points
+MEDIOCRE: 4-9 points
+EXTREME: 10-20 points
+
 """  
 
-def get_updated_combat_scene_prompt(combat_scene: CombatScene, outcome: str):
+def get_updated_combat_scene_prompt(combat_scene: CombatScene, outcome: ActionOutcome, next_player:str):
     return f"""
-Please provide an updated combat scene model for the below.
+Current scene context:
+{combat_scene}
+
+Please update the game state according the following changes:
+{outcome.game_update}
+
+Update each chatacters health accordingly. If a player has died or fleed the scene then DO NOT include them in the updated list of characters.
+
+Please revise the game summary according to the below update (keeping vital information):
+{outcome.outcome}
+
+Finally, please include a new event that '{next_player}' has to respond to unless they are dead in which case give a generic event.
+
+However, only add a new event if it does not seem like the scene is coming to a close to prevent it from dragging on.
+"""
+
+def check_scene_termination_prompt(combat_scene: CombatScene):
+    return f"""
+As D&D dungeon master, it is your duty to determine whether to move onto the next scene.
+
+Based on the context below, please determine whether the scene is complete.
+
+The scene should be complete if for example all enemies or all players have reached 0 HP or if the enemies are no longer hostile.
+
+Note that players may have fleed, so if there are no characters of type "PLAYER" then the scene should also end.
+
+If the scene continues then set 'terminate_reason' to the empty string.
 
 Current scene context:
 {combat_scene}
 
-Please update the combat scene according the following outcome:
-{outcome}
-
-Please update the character list and their health accordingly. 
-
-For example, if a player has died or fleed the scene they need to be removed from the list of characters.
-
-Finally, please revise the game summary to provide a narrative retelling of what has happened in the scene so far and include the new information.
 """
-
 # Adapt the combat scene as necesarry, for example if a player died or fleed, remove them from the list.
