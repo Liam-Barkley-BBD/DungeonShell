@@ -4,14 +4,11 @@ import asyncio
 from typing import List
 from dotenv import load_dotenv
 
-from langchain_openai import ChatOpenAI, custom_tool
+from langchain_openai import ChatOpenAI
 
-from langchain.agents import initialize_agent, AgentType, tool
-from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 
-from langgraph.prebuilt import create_react_agent
 from prompts import *
 
 from models import *
@@ -36,7 +33,7 @@ class GameAgent(object):
     
     async def invoke_agent(self, parser: JsonOutputParser, prompt :str):
         prompt_template = PromptTemplate(
-            template=  "Answer the user query\n{format_instructions}\n{query}",
+            template=  "{query}\n{format_instructions}",
             input_variables=[],
             partial_variables={"format_instructions": parser.get_format_instructions()},
         )
@@ -44,26 +41,26 @@ class GameAgent(object):
         chain = prompt_template | self.agent | parser
         return await chain.ainvoke({"query": prompt})
 
-    async def create_scene(self, game_instance: GameState, scene_type: GameScene) -> SceneDescription:
+    async def create_scene(self, game_instance: GameState, scene_type: GameScene, scene_index: int, num_scenes: int) -> SceneDescription:
         parser = JsonOutputParser(pydantic_object=SceneDescription)
         
         match scene_type:
             case GameScene.COMBAT:
-                prompt = get_combat_prompt(game_instance)
+                prompt = get_combat_prompt(game_instance, scene_index, num_scenes)
 
         scene = await self.invoke_agent(parser=parser, prompt=prompt)
         
         return SceneDescription(**scene)
     
-    async def get_combat_scene(self, scene: SceneDescription, players: list[Player]) -> CombatScene:
+    async def initialize_combat_scene(self, scene: SceneDescription, players: list[Player]) -> CombatScene:
         parser = JsonOutputParser(pydantic_object=CombatScene)
         prompt = get_combat_scene_prompt(scene, players)
         scene = await self.invoke_agent(parser=parser, prompt=prompt)
         return CombatScene(**scene)
     
-    async def get_combat_info(self, player_response: str, combat_scene: CombatScene, player: Player) -> Action:
+    async def get_combat_info(self, player_response: str, combat_scene: CombatScene, player: Player, event: str) -> Action:
         parser = JsonOutputParser(pydantic_object=Action)
-        prompt = get_action(combat_scene, player, player_response)
+        prompt = get_action(combat_scene, player, player_response, event)
         result = await self.invoke_agent(parser=parser, prompt=prompt)
         return Action(**result)   
     
@@ -87,8 +84,26 @@ class GameAgent(object):
         result = await self.invoke_agent(parser=parser, prompt=prompt)
         return ActionOutcome(**result)   
 
-    async def get_updated_combat_scene(self, combat_scene: CombatScene, outcome: str) -> CombatScene:
+    async def get_updated_combat_scene(self, combat_scene: CombatScene, outcome: ActionOutcome, next_player: str) -> CombatScene:
         parser = JsonOutputParser(pydantic_object=CombatScene)
-        prompt = get_updated_combat_scene_prompt(combat_scene, outcome)
+        prompt = get_updated_combat_scene_prompt(combat_scene, outcome, next_player)
         scene = await self.invoke_agent(parser=parser, prompt=prompt)
         return CombatScene(**scene)
+
+    async def check_scene_termination(self, combat_scene: CombatScene) -> EndScene:
+        parser = JsonOutputParser(pydantic_object=EndScene)
+        prompt = check_scene_termination_prompt(combat_scene)
+        scene = await self.invoke_agent(parser=parser, prompt=prompt)
+        return EndScene(**scene)
+
+    async def get_updated_game_history(self, old_summary: str, scene_summary: str) -> GameHistory:
+        parser = JsonOutputParser(pydantic_object=GameHistory)
+        prompt = update_game_summary_prompt(old_summary, scene_summary)
+        history = await self.invoke_agent(parser=parser, prompt=prompt)
+        return GameHistory(**history)
+
+    async def get_next_event(self, combat_scene: CombatScene, next_player: str) -> Event:
+        parser = JsonOutputParser(pydantic_object=Event)
+        prompt = get_next_event_prompt(combat_scene, next_player)
+        event = await self.invoke_agent(parser=parser, prompt=prompt)
+        return Event(**event)

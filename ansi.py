@@ -1,5 +1,4 @@
 import os
-import rich as r
 
 ESC = "\x1B"
 

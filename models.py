@@ -36,15 +36,15 @@ class PlayerPrompt:
 
 class Player(BaseModel):
     name: str = Field(description="name")
-    image: AsciiMipmaps | None = Field(description="image should be null")
-    level: int = Field(description="level")
     current_hp: int = Field(description="current hp")
     max_hp: int = Field(description=" maximum hp")
     strength: int = Field(description="strength level")
     intelligence: int = Field(description="inteligence level")
     charisma: int = Field(description="charisma level")
     inventory: List[str] = Field(description="Player items")
-
+    image: AsciiMipmaps | None = None
+    xp: int = 0
+    
     def hp_bar(self):
         hp = self.current_hp
         return progress(hp, self.max_hp, hp < self.max_hp / 3 and hp > 0)
@@ -59,7 +59,7 @@ class Player(BaseModel):
         inventory_str = ", ".join(self.inventory) if len(self.inventory) > 0 else "Empty"
         dead = self.current_hp == 0
 
-        return f"""[{ "strike " if dead else "" }cyan]{self.name} (Level {self.level})[/]{" [red]DEAD[/]" if dead else ""}
+        return f"""[{ "strike " if dead else "" }cyan]{self.name}[/]{" [red]DEAD[/]" if dead else ""}
 [yellow]HEALTH[/] {self.hp_bar()} {self.current_hp} / {self.max_hp}
 [cyan]ITEMS[/]  {inventory_str}"""
 
@@ -90,7 +90,7 @@ class Player(BaseModel):
             rc.Columns([
                 f"\n{self.image.small if self.image is not None else ''}",
                 f"""
-[{ "strike " if dead else "" }cyan]{self.name} (Level {self.level})[/]{" [red]DEAD[/]" if dead else ""}
+[{ "strike " if dead else "" }cyan]{self.name}[/]{" [red]DEAD[/]" if dead else ""}
 
 [yellow]HEALTH[/] {self.hp_bar()} {self.current_hp} / {self.max_hp}
 
@@ -110,7 +110,7 @@ class Player(BaseModel):
             rc.Columns([
                 f"\n{self.image.medium if self.image is not None else ''}",
                 f"""
-[{ "strike " if dead else "" }cyan]{self.name} (Level {self.level})[/]{" [red]DEAD[/]" if dead else ""}
+[{ "strike " if dead else "" }cyan]{self.name}[/]{" [red]DEAD[/]" if dead else ""}
 
 [yellow]HEALTH[/] {self.hp_bar()} {self.current_hp} / {self.max_hp}
 
@@ -130,7 +130,6 @@ class GameState(object):
     story_summary: str
     players: list[Player]
     game_summary: str = "Nothing has happened"
-    iteration: int = 1
 
 class GameScene(Enum):
     COMBAT = 0
@@ -161,9 +160,19 @@ class CombatScene(BaseModel):
     battle_summary: str
 
 class ActionOutcome(BaseModel):
-    feedback: str = Field("Feedback to give player in game")
-    outcome: str = Field("How action influenced the game state")
+    outcome: str = Field("How action influenced the game storyline")
+    game_update: str = Field("Updates to players and game state")
 
 class SceneDescription(BaseModel):
     name: str = Field("Name of scene")
     description: str = Field("Scene description")
+
+class EndScene(BaseModel):
+    terminate_scene: bool = Field("Indicates end of current scene")
+    terminate_reason: str = Field("Reason for termination")
+
+class GameHistory(BaseModel):
+    history: str = Field("Brief summary of story so far")
+
+class Event(BaseModel):
+    event: str = Field("New event in story")
