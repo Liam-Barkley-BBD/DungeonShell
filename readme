@@ -1,0 +1,33 @@
+# DungeonShell 🐉
+
+DungeonShell is our submission for the AI Hackathon.  
+It’s a text-based adventure game inspired by *Dungeons & Dragons*, where an AI Dungeon Master guides the players through dynamic, story-rich encounters.  
+
+The Large Language Model (LLM) serves as the **Dungeon Master**, responsible for:
+- Crafting immersive scenes and settings across any theme or genre.  
+- Creating enemies, NPCs, and plot twists on the fly.  
+- Mutating the game state based on rules, ensuring continuity and progression.  
+
+Meanwhile, the **core mechanics and game rules** are strictly enforced to prevent randomness or “rule-breaking.”  
+This combination results in battles and adventures that are both consistent and highly engaging, while still allowing the AI freedom to tell a fun, unpredictable story.  
+
+---
+
+## Features
+- AI-driven **Dungeon Master** that narrates, describes, and adapts to player actions.  
+- Fixed **rule-based game mechanics** (combat, turns, abilities, etc.) to keep the game fair and structured.  
+- Thematic flexibility — the story can shift into fantasy, sci-fi, horror, or anything else.  
+- Engaging, replayable gameplay with both **mechanical depth** and **narrative creativity**.  
+
+---
+
+## Requirements
+All dependencies are listed in `requirements.txt`.  
+Install them with:
+
+```bash
+git clone https://github.com/Liam-Barkley-BBD/DungeonShell.git
+cd DungeonShell
+pip install -r requirements.txt
+python game.py
+
