@@ -68,7 +68,9 @@ async def main():
                 r.print(f"What do you do? ", end='')
                 player_response = input()
                 
+                show_loading()                
                 action = await game_agent.get_combat_info(player_response, combat_scene, player, event.event)
+                clear_loading()
 
                 dice_roll = random.randint(1,20)
                 attribute_score = 0
